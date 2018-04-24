@@ -177,7 +177,7 @@ function mp3Duration(filename, cbrEstimate, callback) {
       } else {
         bytesRead = srcBuffer.copy(buffer, 0, 0, 100);
       }
-      if (bytesRead < 100) return 0;
+      if (bytesRead < 100) return;
 
       offset = skipId3(buffer);
 
@@ -188,7 +188,7 @@ function mp3Duration(filename, cbrEstimate, callback) {
           bytesRead = srcBuffer.copy(buffer, 0, offset, offset + 10);
         }
 
-        if (bytesRead < 10) return round(duration);
+        if (bytesRead < 10) return;
 
         //Looking for 1111 1111 111 (frame synchronization bits)
         if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) {
@@ -206,11 +206,17 @@ function mp3Duration(filename, cbrEstimate, callback) {
         }
 
         if (cbrEstimate && info) {
-          return round(estimateDuration(info.bitRate, offset, stat.size));
+          return {
+            info,
+            duration: round(estimateDuration(info.bitRate, offset, stat.size))
+          }
         }
       }
 
-      return round(duration);
+      return {
+        info,
+        duration: round(duration)
+      };
 
     } finally {
       if (!isBuffer) {
