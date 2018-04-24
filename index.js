@@ -131,22 +131,21 @@ function parseFrameHeader(header) {
   };
 }
 
-function estimateDuration(bitRate, offset, fileSize) {
-  var kbps = (bitRate * 1000) / 8
-    , dataSize = fileSize - offset;
+function estimateDuration(bitRate, dataSize) {
+  var kbps = (bitRate * 1000) / 8;
 
-  return round(dataSize / kbps);
+  return roundMs(dataSize / kbps);
 }
 
-function round(duration) {
+function roundMs(duration) {
   return Math.round(duration * 1000) / 1000; //round to nearest ms
 }
 
-function mp3Duration(filename, cbrEstimate, callback) {
-  if (typeof cbrEstimate === 'function') {
-    callback = cbrEstimate;
-    cbrEstimate = false;
-  }
+function calcBitRate(bitRates) {
+  return Math.round(bitRates.reduce((prev, cur) => prev + cur, 0) / bitRates.length);
+}
+
+function mp3Duration(filename, callback) {
   return co(function* () {
     var duration = 0
       , fd
@@ -155,6 +154,9 @@ function mp3Duration(filename, cbrEstimate, callback) {
       , offset
       , stat
       , info
+      , dataSize = 0
+      , fileSize
+      , bitRates = []
       , srcBuffer
       , isBuffer = false;
 
@@ -177,24 +179,29 @@ function mp3Duration(filename, cbrEstimate, callback) {
       } else {
         bytesRead = srcBuffer.copy(buffer, 0, 0, 100);
       }
-      if (bytesRead < 100) return;
+
+      if (bytesRead < 100) throw new Error('bytesRead < 100');
 
       offset = skipId3(buffer);
 
-      while (offset < (isBuffer ? srcBuffer.length : stat.size)) {
+      fileSize = isBuffer ? srcBuffer.length : stat.size;
+
+      while (offset < fileSize) {
         if (!isBuffer) {
           bytesRead = yield read(fd, buffer, 0, 10, offset);
         } else {
           bytesRead = srcBuffer.copy(buffer, 0, offset, offset + 10);
         }
 
-        if (bytesRead < 10) return;
+        if (bytesRead < 10) throw new Error('bytesRead < 10');
 
         //Looking for 1111 1111 111 (frame synchronization bits)
         if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) {
           info = parseFrameHeader(buffer);
           if (info.frameSize && info.samples) {
+            bitRates.push(info.bitRate);
             offset += info.frameSize;
+            dataSize += info.frameSize;
             duration += ( info.samples / info.sampleRate );
           } else {
             offset++; //Corrupt file?
@@ -204,18 +211,12 @@ function mp3Duration(filename, cbrEstimate, callback) {
         } else {
           offset++; //Corrupt file?
         }
-
-        if (cbrEstimate && info) {
-          return {
-            info,
-            duration: round(estimateDuration(info.bitRate, offset, stat.size))
-          }
-        }
       }
 
       return {
-        info,
-        duration: round(duration)
+        dataSize,
+        duration: roundMs(duration),
+        bitRate: calcBitRate(bitRates)
       };
 
     } finally {

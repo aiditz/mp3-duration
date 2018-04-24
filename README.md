@@ -30,7 +30,7 @@ Type: `string` | `Buffer`
 
 Path to the file or a buffer with the file's contents
 
-### cbrEstimate
+### cbrEstimate (removed by Aiditz)
 
 Defaults to `false`. When set to `true`, will estimate the length of a
 constant-bitrate mp3. This speeds up the calculation a lot but isn't

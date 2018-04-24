@@ -13,14 +13,6 @@ describe('mp3Duration', function() {
     });
   });
 
-  it('returns a correct value for CBR duration with estimate', function(done) {
-    mp3Duration('./tests/demo - cbr.mp3', true, function(err, {duration}) {
-      assert.equal(err, null, (err || {}).message);
-      assert.equal(duration, 285.727, 'Length not as expected');
-      done();
-    });
-  });
-
   it('returns a correct value for CBR duration without estimate', function(done) {
     mp3Duration('./tests/demo - cbr.mp3', function(err, {duration}) {
       assert.equal(err, null, (err || {}).message);
@@ -50,12 +42,22 @@ describe('mp3Duration', function() {
     });
   });
 
-  it('return a correct bitrate', function(done) {
+  it('return a correct bitrate for CBR', function(done) {
     const buffer = fs.readFileSync('./tests/overwerk - reflect.mp3');
 
-    mp3Duration(buffer, function(err, {info}) {
+    mp3Duration(buffer, function(err, {bitRate}) {
       assert.equal(err, null, (err || {}).message);
-      assert.equal(info.bitRate, 320, 'Bitrate not as expected');
+      assert.equal(bitRate, 320, 'Bitrate not as expected');
+      done();
+    });
+  });
+
+  it('return a correct bitrate for VBR', function(done) {
+    const buffer = fs.readFileSync('./tests/demo - vbr.mp3');
+
+    mp3Duration(buffer, function(err, {bitRate}) {
+      assert.equal(err, null, (err || {}).message);
+      assert.equal(bitRate, 188, 'Bitrate not as expected');
       done();
     });
   });
